@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tree Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <div
+      id="tree-explorer"
+      role="tree"
+      tabindex="0"
+      class="fixed bottom-0 left-0 w-full h-1/2 bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-700 transform translate-y-full transition-transform duration-100 ease-in-out">
+
+      <div class="flex flex-col h-full">
+        <div class="p-4 border-b border-gray-200">
+          <nav class="text-sm text-gray-600" id="breadcrumbs">
+            <span class="hover:text-blue-500 cursor-pointer">Root</span>
+          </nav>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4" id="tree-container">
+          <ul class="space-y-2" id="tree-content">
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+const explorer = document.getElementById('tree-explorer');
+const breadcrumbs = document.getElementById('breadcrumbs');
+const treeContent = document.getElementById('tree-content');
+const treeContainer = document.getElementById('tree-container');
+
+// Sample tree data (you could expand this)
+const treeData = {
+  'Root': {
+    'Folder1': {
+      'Subfolder1': {},
+      'File2.txt': null
+    },
+    'Folder2': {
+      'Subfolder3': {
+        'Subfolder4': {
+          'Subfolder5': {
+            'Subfolder5': {
+              'File4.txt': null
+            },
+          },
+        },
+      },
+      'File3.txt': null
+    },
+    'File1.txt': null
+  }
+};
+
+function toggleExplorer() {
+  if (explorer.classList.contains('translate-y-full')) {
+    // explorer.classList.remove('hidden'); // Ensure it's visible
+    explorer.classList.remove('translate-y-full');
+    explorer.querySelector("li").focus()
+  } else {
+    explorer.classList.add('translate-y-full');
+    explorer.addEventListener('transitionend', function hideAfterSlide() {
+      // explorer.classList.add('hidden');
+      explorer.removeEventListener('transitionend', hideAfterSlide);
+    }, { once: true });
+  }
+}
+
+function renderBreadcrumbs(path) {
+  console.log("breadcrumbs.render", path)
+  const parts = path.split('/');
+  breadcrumbs.innerHTML = parts
+    .map((part, i) => {
+      const subPath = parts.slice(0, i + 1).join('/');
+      return `<span class="hover:text-blue-500 cursor-pointer" data-path="${subPath}">${part}</span>`;
+    })
+    .join(' > ');
+}
+
+function renderTree(path) {
+  console.log("tree.render", path)
+  let current = treeData;
+  path.split('/').forEach(part => {
+    if (part && current[part]) current = current[part];
+  });
+
+  treeContent.innerHTML = Object.keys(current)
+    .map(item => {
+      const isFolder = current[item] !== null;
+      return `
+        <li tabindex="0" class="flex items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-200 dark:focus:bg-gray-600 outline-none p-2 rounded focus:ring-2 focus:ring-blue-500" data-path="${path}/${item}">
+          <span class="mr-2">${isFolder ? '📁' : '📄'}</span> ${item}
+        </li>
+      `;
+    })
+    .join('');
+
+  let first = treeContent.querySelector("li")
+  if (first) {
+     first.focus()
+  }
+}
+
+function handleNavigation(e) {
+  const path = e.target.closest('li, span')?.dataset.path;
+  if (!path) return;
+  renderBreadcrumbs(path);
+  renderTree(path);
+}
+
+// Event listeners
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 't') {
+    e.preventDefault();
+    toggleExplorer();
+  }
+});
+
+treeContent.addEventListener('click', handleNavigation);
+breadcrumbs.addEventListener('click', handleNavigation);
+
+// Initial render
+renderBreadcrumbs('Root');
+renderTree('Root');
+    // JavaScript will go here
+
+function handleKeyNavigation(e) {
+  const focused = document.activeElement;
+  const items = Array.from(treeContent.querySelectorAll('li'));
+
+  if (!items.length || !focused || focused === explorer) return;
+
+  const index = items.indexOf(focused);
+
+  console.log(e.key)
+
+  switch (e.key) {
+    case 'ArrowUp':
+      e.preventDefault();
+      if (index > 0) items[index - 1].focus();
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      if (index < items.length - 1) items[index + 1].focus();
+      break;
+    case 'ArrowRight':
+    case 'Enter':
+      e.preventDefault();
+      if (focused.dataset.path) {
+        const path = focused.dataset.path;
+        const current = path.split('/').reduce((acc, part) => acc && acc[part], treeData);
+        if (current && Object.keys(current).length > 0) { // If it's a folder with contents
+          renderBreadcrumbs(path);
+          renderTree(path);
+        }
+      }
+      break;
+    case 'ArrowLeft':
+    case 'Escape':
+      e.preventDefault();
+      const parts = focused.dataset.path.split('/');
+      if (parts.length > 2) {
+        const parentPath = parts.slice(0, -2).join('/');
+        console.log("parts", parts, "parent", parentPath)
+        renderBreadcrumbs(parentPath);
+        renderTree(parentPath);
+      }
+      break;
+  }
+}
+treeContainer.addEventListener('keydown', handleKeyNavigation);
+
+    </script>
+  </body>
+</html>
