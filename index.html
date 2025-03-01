@@ -8,30 +8,27 @@
   </head>
   <body class="bg-gray-200 dark:bg-gray-950 font-mono text-gray-900 dark:text-gray-200 transition-colors duration-300">
     <div id="tree-explorer" class="fixed bottom-0 left-0 w-full h-1/3 bg-gray-100 dark:bg-gray-900 border-t border-gray-300 dark:border-gray-800 shadow-md transform translate-y-full transition-transform duration-200 ease-in-out" tabindex="0">
-    <div class="flex flex-col h-full">
-      <!-- Breadcrumbs -->
-      <div class="px-2 py-1 border-b border-gray-300 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400">
-        <nav id="breadcrumbs">
-          <span class="hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer">Root</span>
-        </nav>
-      </div>
-      <!-- Tree Content -->
-      <div class="flex-1 overflow-y-auto px-2 py-1 outline-none" id="tree-container">
-        <ul class="space-y-0.5" id="tree-content">
-          <li class="flex items-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-800 p-1 rounded-sm text-sm focus:bg-gray-300 dark:focus:bg-gray-700 outline-none" data-path="Root/Folder1" tabindex="0">
-            <span class="mr-1 text-gray-500 dark:text-gray-400">📁</span> Folder1
-          </li>
-          <li class="flex items-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-800 p-1 rounded-sm text-sm focus:bg-gray-300 dark:focus:bg-gray-700 outline-none" data-path="Root/Folder2" tabindex="0">
-            <span class="mr-1 text-gray-500 dark:text-gray-400">📁</span> Folder2
-          </li>
-          <li class="flex items-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-800 p-1 rounded-sm text-sm focus:bg-gray-300 dark:focus:bg-gray-700 outline-none" data-path="Root/File1.txt" tabindex="0">
-            <span class="mr-1 text-gray-500 dark:text-gray-400">📄</span> File1.txt
-          </li>
-        </ul>
+      <div id="handle" class="h-1 hover:bg-gray-800 cursor-ns-resize"></div>
+      <div class="flex flex-col h-full">
+        <div class="px-2 border-b border-gray-300 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400">
+          <nav id="breadcrumbs">
+            <span class="hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer">Root</span>
+          </nav>
+        </div>
+        <div class="flex-1 overflow-y-auto px-2 py-1 outline-none" id="tree-container">
+          <ul class="space-y-0 ml-1" id="tree-content"></ul>
+        </div>
       </div>
     </div>
-  </div>
-<script>
+    <script>
+    // JQ-like syntax ideas
+    // echo '{ "a": { "x": 1}, "b": { "z": 2} }'
+    //    | jq '{a: .a|{z}, b: .b|{z}}'
+    // | jq '{a,b|{z}}
+    // {a,b} | ..z
+
+    // cat data.json | {|.name} == { LCC, BCC }
+    // cat data.json | [*.name] 
 const explorer = document.getElementById('tree-explorer');
 const breadcrumbs = document.getElementById('breadcrumbs');
 const treeContent = document.getElementById('tree-content');
@@ -93,20 +90,24 @@ function renderTree(path) {
     if (part && current[part]) current = current[part];
   });
 
-  treeContent.innerHTML = Object.keys(current)
-    .map(item => {
-      const isFolder = current[item] !== null;
+  let keys = Object.keys(current)
+  // ─, ├─, │
+  treeContent.innerHTML = keys
+    .map((item, index, list) => {
+      const isLast = index == list.length -1
+      const hasMore = typeof current[item] == 'object' && current[item] !== null
+
       return `
-        <li class="flex items-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-800 p-1 rounded-sm text-sm focus:bg-gray-300 dark:focus:bg-gray-700 outline-none" data-path="${path}/${item}" tabindex="0">
-          <span class="mr-1 text-gray-500 dark:text-gray-400">${isFolder ? '📁' : '📄'}</span> ${item}
-        </li>
-      `;
+<li class="flex items-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-800 p-0 rounded-xs text-xs focus:bg-gray-300 dark:focus:bg-gray-700 outline-none" data-path="${path}/${item}" tabindex="0">
+<span class="mr-1 text-gray-500 dark:text-gray-400">${isLast ? '└─' : '├─'}</span> <span contenteditable="false" class="editable" data-type="key">${item}</span> ${hasMore ? '&nbsp;{…}' : ''}
+</li>
+`;
     })
     .join('');
 
   let first = treeContent.querySelector("li")
   if (first) {
-     first.focus()
+    first.focus()
   }
 }
 
@@ -131,7 +132,7 @@ breadcrumbs.addEventListener('click', handleNavigation);
 // Initial render
 renderBreadcrumbs('Root');
 renderTree('Root');
-    // JavaScript will go here
+// JavaScript will go here
 
 function handleKeyNavigation(e) {
   const focused = document.activeElement;
@@ -145,15 +146,18 @@ function handleKeyNavigation(e) {
 
   switch (e.key) {
     case 'ArrowUp':
+    case "k":
       e.preventDefault();
       if (index > 0) items[index - 1].focus();
       break;
     case 'ArrowDown':
+    case 'j':
       e.preventDefault();
       if (index < items.length - 1) items[index + 1].focus();
       break;
     case 'ArrowRight':
     case 'Enter':
+    case 'l':
       e.preventDefault();
       if (focused.dataset.path) {
         const path = focused.dataset.path;
@@ -166,6 +170,7 @@ function handleKeyNavigation(e) {
       break;
     case 'ArrowLeft':
     case 'Escape':
+    case 'h':
       e.preventDefault();
       const parts = focused.dataset.path.split('/');
       if (parts.length > 2) {
@@ -179,6 +184,33 @@ function handleKeyNavigation(e) {
 }
 treeContainer.addEventListener('keydown', handleKeyNavigation);
 
-    </script>
+  const resizable = document.getElementById('tree-explorer');
+  const handle = document.getElementById('handle');
+  let isDragging = false;
+  let startY;
+  let startHeight;
+
+  handle.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    startY = e.clientY;
+    startHeight = resizable.offsetHeight;
+    document.body.style.userSelect = 'none'; // Prevent text selection
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const deltaY = startY - e.clientY;
+    const newHeight = startHeight + deltaY;
+    if (document.scrollingElement.clientHeight >= newHeight && newHeight >= 50) { // Minimum height of 50px
+      resizable.style.height = `${newHeight}px`;
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    document.body.style.userSelect = ''; // Restore text selection
+  });
+
+</script>
   </body>
 </html>
