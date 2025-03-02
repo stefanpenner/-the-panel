@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Module Import Test</title>
+</head>
+<body>
+  <!-- First module: Exports render function -->
+  <script type="module" id="tree-item">
+    export function render(x) {
+      debugger; // Pauses execution for debugging
+      console.log("Rendering:", x);
+      return `Rendered: ${x}`;
+    }
+  </script>
+
+  <!-- Second module: Imports and uses render -->
+  <script type="module">
+    import { render } from "./#tree-item";
+
+    // Example usage
+    const result = render("test");
+    console.log(result); // Outputs: "Rendered: test"
+  </script>
+</body>
+</html>

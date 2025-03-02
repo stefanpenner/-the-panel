@@ -1,0 +1,2 @@
+- [ ] finish tree
+- [ ] add detailed panel

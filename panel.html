@@ -7,11 +7,35 @@
     <span x-text-content="content" contenteditable="false" class="editable" data-type="key">${item}</span>
     <span x-text-content="has-more"></span>
   </li>
+
+  <script type="module">
+    export function render(root, data) {
+      const li = root.querySelector("li")
+      // ─, ├─, │
+      li.querySelector('[x-text-content=prefix]').textContent = data.isLast ? '└─' : '├─'
+      li.querySelector('[x-text-content=has-more]').textContent = data.hasMore ? ' {…}' : ''
+      li.querySelector('[x-text-content=content]').textContent = data.item
+
+      li.dataset['path'] = `${data.path}/${data.item}`
+
+      return root
+    }
+  </script>
 </template>
 
 <template id="template[breadcrum]">
   <span class="hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer">
   </span>
+  <script type="module">
+    export function render(root, data) {
+      const crumb = root.querySelector('span')
+
+      crumb.dataset['path'] = data.path
+      crumb.textContent = data.part
+
+      return crumb
+    }
+  </script>
 </template>
 
 <template id="template[panel]">
@@ -30,9 +54,27 @@
       </div>
     </div>
   </div>
+
+  <script type="module">
+    export function render(root, data, renderers) {
+      root.querySelector('#breadcrumbs').replaceChildren(renderers("breadcrumb", data.breadcrumbs))
+      root.querySelector('#tree-content').replaceChildren(renderers("tree-item", data.breadcrumbs))
+    }
+  </script>
 </template>
 
 <script type="module">
+
+async function createModule(code) {
+  const blob = new Blob([code], { type: 'application/javascript' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const module = await import(url);
+    return module;
+  } finally {
+    URL.revokeObjectURL(url); // Clean up the URL
+  }
+}
 class Panel {
   appendTo(root) {
     const panel = root.getElementById('template[panel]').content.cloneNode(true)
@@ -103,27 +145,31 @@ class Panel {
       }))
     }
 
-    function renderTreeItem(template, path) {
+    async function render(templateName, data) {
+      // // TODO: some cahing
+      const template = document.__currentScript__.parentNode.getElementById('template[' + templateName + ']')
+      const m = await createModule(template.content.querySelector('script').text)
+      return m.render(template.content.cloneNode(true), data)
+    }
+
+    async function renderTreeItem(path) {
       let current = treeData;
 
       path.split('/').forEach(part => {
         if (part && current[part]) current = current[part];
       });
 
-      treeContent.replaceChildren(...Object.keys(current).map((item, index, list) => {
-        const isLast = index == list.length -1
-        const hasMore = typeof current[item] == 'object' && current[item] !== null
-        const li = template.content.cloneNode(true).querySelector('li')
-
-        // ─, ├─, │
-        li.querySelector('[x-text-content=prefix]').textContent = isLast ? '└─' : '├─'
-        li.querySelector('[x-text-content=has-more]').textContent = hasMore ? ' {…}' : ''
-        li.querySelector('[x-text-content=content]').textContent = item
-
-        li.dataset['path'] = `${path}/${item}`
-
-        return li
+      const children = await Promise.all(Object.keys(current).map((item, index, list) => {
+        // TODO: make sync
+        return render("tree-item", {
+          isLast: index == list.length - 1,
+          hasMore:  typeof current[item] == 'object' && current[item] !== null,
+          item
+        })
       }))
+
+      treeContent.replaceChildren(...children.map(rendered => rendered.querySelector("li")))
+
 
       let first = treeContent.querySelector("li")
       if (first) {
@@ -131,12 +177,12 @@ class Panel {
       }
     }
 
-    function handleNavigation(e) {
+    async function handleNavigation(e) {
       const path = e.target.closest('li, span')?.dataset.path;
       if (!path) return;
 
       renderBreadcrumbs(root.getElementById('template[breadcrum]'), path);
-      renderTreeItem(root.getElementById('template[tree-item]'), path);
+      await renderTreeItem(path);
     }
 
     // Event listeners
@@ -152,7 +198,7 @@ class Panel {
     breadcrumbs.addEventListener('click', handleNavigation);
 
     renderBreadcrumbs(root.getElementById('template[breadcrum]'), 'Root');
-    renderTreeItem(root.getElementById('template[tree-item]'), "Root")
+    renderTreeItem("Root")
 
     function handleKeyNavigation(e) {
       const focused = root.activeElement;
@@ -182,7 +228,7 @@ class Panel {
             const current = path.split('/').reduce((acc, part) => acc && acc[part], treeData);
             if (current && Object.keys(current).length > 0) { // If it's a folder with contents
               renderBreadcrumbs(root.getElementById('template[breadcrum]'), path)
-              renderTreeItem(root.getElementById('template[tree-item]'), path)
+              renderTreeItem(path)
             }
           }
           break;
@@ -194,7 +240,7 @@ class Panel {
           if (parts.length > 2) {
             const parentPath = parts.slice(0, -2).join('/');
             renderBreadcrumbs(root.getElementById('template[breadcrum]'), parentPath)
-            renderTreeItem(root.getElementById('template[tree-item]'), parentPath)
+            renderTreeItem(parentPath)
           }
           break;
       }
