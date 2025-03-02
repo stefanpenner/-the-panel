@@ -1,4 +1,4 @@
-export async function importElement(name, path) {
+export async function component(name, path) {
   const panel = await fetch(path)
   const html = await panel.text()
 
