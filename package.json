@@ -1,0 +1,17 @@
+{
+  "name": "learn-tailwind",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx @tailwindcss/cli -i ./input.css -m -o ./output.css --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.0.9",
+    "tailwindcss": "^4.0.9"
+  }
+}
